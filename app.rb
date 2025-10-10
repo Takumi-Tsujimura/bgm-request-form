@@ -760,7 +760,7 @@ get '/signup/skip' do
 
   if user.save
     session[:user_id] = user.id
-    send_signup_confirmation_mail(user)
+    # send_signup_confirmation_mail(user)
     redirect '/login_form'
   else
     session[:notice] = user.errors.full_messages.join(', ')

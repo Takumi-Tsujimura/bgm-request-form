@@ -766,6 +766,33 @@ get '/signup/skip' do
   end
 end
 
+# def send_signup_confirmation_mail(user)
+#   Pony.mail(
+#     to: user.mail,
+#     from: ENV['MAIL_USER'],
+#     subject: '【TuneBox】アカウント作成が完了しました',
+#     body: <<~BODY
+#       #{user.last_name} #{user.first_name}様
+
+#       TuneBoxへのご登録ありがとうございます。
+#       アカウントの作成が正常に完了しました。
+
+#       ■ 登録情報
+#       ・Spotifyアカウント: #{user.spotify_display_name || "（未連携）"}
+#       ・メールアドレス: #{user.mail}
+
+#       このメールに心当たりがない場合は、
+#       お手数ですが、このメールに返信をお願いいたします。
+#       登録内容に問題があると感じた場合は、
+#       サポートまでご連絡ください。
+
+#       今後ともTuneBoxをよろしくお願いいたします。
+
+#       TuneBox 開発チーム
+#     BODY
+#   )
+# end
+
 def send_signup_confirmation_mail(user)
   # メール送信を一時停止したいときは ENV['MAIL_DISABLED']='1'
   return true if ENV['MAIL_DISABLED'] == '1'

@@ -8,10 +8,20 @@ development:
   encoding: unicode
   database: s_original
 
+# production:
+#   adapter: postgresql
+#   encoding: unicode
+#   database: s_original_rzo1
+#   host: dpg-d1kar93e5dus73ea454g-a
+#   username: s_original_rzo1_user
+#   password: MdP5jaXW817CmgbjDEGm4N5NG8tJHZxU
+
 production:
   adapter: postgresql
   encoding: unicode
-  database: s_original_rzo1
-  host: dpg-d1kar93e5dus73ea454g-a
-  username: s_original_rzo1_user
-  password: MdP5jaXW817CmgbjDEGm4N5NG8tJHZxU
+  database: defaultdb
+  host: tunebox-db-tuneboxdb.b.aivencloud.com
+  port: 23173
+  username: avnadmin
+  password: AVNS_nxomey0zTj9hK-NdJPt
+  sslmode: require

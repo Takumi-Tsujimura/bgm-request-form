@@ -16,7 +16,6 @@ require './models'
 enable :sessions
 use Rack::MethodOverride
 
-
 configure do
   
   Dotenv.load

@@ -16,6 +16,7 @@ require './models'
 enable :sessions
 use Rack::MethodOverride
 
+
 configure do
   
   Dotenv.load
@@ -195,7 +196,7 @@ get '/callback' do
       session[:refresh_token] = refresh_token
       session[:expires_in] = expires_at
       
-      # send_signup_confirmation_mail(user)
+      send_signup_confirmation_mail(user)
       
       redirect '/login_form'
     else
@@ -401,7 +402,6 @@ get '/admin' do
   
   if session[:user_id].nil?
     redirect '/login_form'
-    return
   end
   
   @current_user = User.find(session[:user_id])
@@ -736,6 +736,8 @@ end
 
 post '/auth/spotify/link/reconnect' do
   redirect '/login_form' unless session[:user_id]
+  
+  
   redirect '/auth'
 end
 
@@ -757,7 +759,7 @@ get '/signup/skip' do
 
   if user.save
     session[:user_id] = user.id
-    # send_signup_confirmation_mail(user)
+    send_signup_confirmation_mail(user)
     redirect '/login_form'
   else
     session[:notice] = user.errors.full_messages.join(', ')
@@ -765,83 +767,32 @@ get '/signup/skip' do
   end
 end
 
-# def send_signup_confirmation_mail(user)
-#   Pony.mail(
-#     to: user.mail,
-#     from: ENV['MAIL_USER'],
-#     subject: '【TuneBox】アカウント作成が完了しました',
-#     body: <<~BODY
-#       #{user.last_name} #{user.first_name}様
+def send_signup_confirmation_mail(user)
+  Pony.mail(
+    to: user.mail,
+    from: ENV['MAIL_USER'],
+    subject: '【TuneBox】アカウント作成が完了しました',
+    body: <<~BODY
+      #{user.last_name} #{user.first_name}様
 
-#       TuneBoxへのご登録ありがとうございます。
-#       アカウントの作成が正常に完了しました。
+      TuneBoxへのご登録ありがとうございます。
+      アカウントの作成が正常に完了しました。
 
-#       ■ 登録情報
-#       ・Spotifyアカウント: #{user.spotify_display_name || "（未連携）"}
-#       ・メールアドレス: #{user.mail}
+      ■ 登録情報
+      ・Spotifyアカウント: #{user.spotify_display_name || "（未連携）"}
+      ・メールアドレス: #{user.mail}
 
-#       このメールに心当たりがない場合は、
-#       お手数ですが、このメールに返信をお願いいたします。
-#       登録内容に問題があると感じた場合は、
-#       サポートまでご連絡ください。
+      このメールに心当たりがない場合は、
+      お手数ですが、このメールに返信をお願いいたします。
+      登録内容に問題があると感じた場合は、
+      サポートまでご連絡ください。
 
-#       今後ともTuneBoxをよろしくお願いいたします。
+      今後ともTuneBoxをよろしくお願いいたします。
 
-#       TuneBox 開発チーム
-#     BODY
-#   )
-# end
-
-# def send_signup_confirmation_mail(user)
-#   # メール送信を一時停止したいときは ENV['MAIL_DISABLED']='1'
-#   return true if ENV['MAIL_DISABLED'] == '1'
-
-#   from = ENV.fetch('MAIL_USER') # 送信元（Gmailアドレス）
-#   pass = ENV.fetch('MAIL_PASS') # アプリパスワード（16桁）
-
-#   Pony.mail(
-#     to:       user.mail,
-#     from:     from,             # Gmailは送信元一致が必須
-#     reply_to: from,             # 返信先（必要なら user.mail に変更可）
-#     subject:  '【TuneBox】アカウント作成が完了しました',
-#     body:     <<~BODY,
-#       #{user.last_name} #{user.first_name}様
-
-#       TuneBoxへのご登録ありがとうございます。
-#       アカウントの作成が正常に完了しました。
-
-#       ■ 登録情報
-#       ・Spotifyアカウント: #{user.spotify_display_name || "（未連携）"}
-#       ・メールアドレス: #{user.mail}
-
-#       このメールに心当たりがない場合は、
-#       お手数ですが、このメールに返信をお願いいたします。
-#       登録内容に問題があると感じた場合は、
-#       サポートまでご連絡ください。
-
-#       今後ともTuneBoxをよろしくお願いいたします。
-
-#       TuneBox 開発チーム
-#     BODY
-#     via: :smtp,
-#     via_options: {
-#       address:              'smtp.gmail.com',
-#       port:                 '587',
-#       enable_starttls_auto: true,
-#       user_name:            from,
-#       password:             pass,          # アプリパスワード
-#       authentication:       :plain,
-#       domain:               'localhost.localdomain'
-#     },
-#     charset: 'UTF-8',
-#     headers: { 'Content-Transfer-Encoding' => 'quoted-printable' }
-#   )
-
-#   true
-# rescue => e
-#   logger.error "MAIL ERROR #{e.class}: #{e.message}"
-#   false
-# end
+      TuneBox 開発チーム
+    BODY
+  )
+end
 
 delete '/user_delete' do
   if session[:user_id]

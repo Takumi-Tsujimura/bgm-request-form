@@ -1,4 +1,4 @@
-require 'bundler/setup'
+equire 'bundler/setup'
 Bundler.require
 require 'sinatra/reloader' if development?
 require 'securerandom'

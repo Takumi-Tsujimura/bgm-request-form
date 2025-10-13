@@ -196,7 +196,7 @@ get '/callback' do
       session[:refresh_token] = refresh_token
       session[:expires_in] = expires_at
       
-      send_signup_confirmation_mail(user)
+      # send_signup_confirmation_mail(user)
       
       redirect '/login_form'
     else

@@ -11,7 +11,6 @@ require 'dotenv/load'
 require 'cgi'
 require 'rqrcode'
 require 'pony'
-require 'timeout'
 require './models'
 
 enable :sessions

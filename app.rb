@@ -11,6 +11,7 @@ require 'dotenv/load'
 require 'cgi'
 require 'rqrcode'
 require 'pony'
+require 'timeout'
 require './models'
 
 enable :sessions
@@ -254,7 +255,7 @@ get '/form/:form_key' do
   erb :'users/show', layout: :'users/layout'
 end
 
-get 'error' do
+get '/error' do
   erb :'users/error.erb', layout: false
 end
 

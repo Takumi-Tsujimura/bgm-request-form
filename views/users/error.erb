@@ -1,1 +1,4 @@
 <h1>このフォームは期限が過ぎています。</h1>
+<% if @error_code && !@error_code.empty? %>
+  <p>Error code: <%= @error_code %></p>
+<% end %>

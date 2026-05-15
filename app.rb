@@ -13,7 +13,11 @@ require 'rqrcode'
 require 'pony'
 require './models'
 
-enable :sessions
+use Rack::Session::Cookie,
+  key: 'rack.session',
+  secret: ENV['SESSION_SECRET'] || SecureRandom.hex(64),
+  same_site: :lax,
+  secure: ENV['RACK_ENV'] == 'production'
 use Rack::MethodOverride
 
 
@@ -24,6 +28,45 @@ configure do
   set :client_id, ENV['CLIENT_ID']
   set :client_secret, ENV['CLIENT_SECRET']
   set :redirect_uri, ENV['REDIRECT_URI'] || 'http://localhost:8888/callback'
+end
+
+def mail_delivery_enabled?
+  ENV['MAIL_ENABLED'] != 'false'
+end
+
+def mail_configured?
+  required_keys = %w[MAIL_USER MAIL_PASS]
+  required_keys.all? { |key| ENV[key] && !ENV[key].strip.empty? }
+end
+
+def pony_via_options
+  {
+    address:              ENV['SMTP_ADDRESS'] || 'smtp.gmail.com',
+    port:                 (ENV['SMTP_PORT'] || '587').to_i,
+    enable_starttls_auto: ENV.fetch('SMTP_STARTTLS_AUTO', 'true') == 'true',
+    user_name:            ENV['MAIL_USER'],
+    password:             ENV['MAIL_PASS'],
+    authentication:       (ENV['SMTP_AUTH'] || 'plain').to_sym,
+    domain:               ENV['SMTP_DOMAIN'] || 'localhost.localdomain'
+  }
+end
+
+def send_mail_safely(**mail_options)
+  unless mail_delivery_enabled?
+    puts '[INFO] MAIL_ENABLED=false のためメール送信をスキップしました'
+    return false
+  end
+
+  unless mail_configured?
+    puts '[WARN] MAIL_USER または MAIL_PASS が未設定のためメール送信をスキップしました'
+    return false
+  end
+
+  Pony.mail(**mail_options)
+  true
+rescue StandardError => e
+  puts "[ERROR] メール送信失敗: #{e.class} #{e.message}"
+  false
 end
 
 
@@ -114,9 +157,8 @@ end
 get '/auth' do
   state = SecureRandom.hex(8)
   session[:state] = state
-  session[:user] = {id: 1, name: "test_user"}
 
-  scope = 'user-read-private user-read-email playlist-modify-public playlist-modify-private'
+  scope = 'user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private'
   query_params = {
     response_type: 'code',
     client_id: settings.client_id,
@@ -242,8 +284,10 @@ end
 
 get '/form/:form_key' do
   @form = Form.find_by(form_key: params[:form_key])
+  redirect '/error/404' if @form.nil?
+
   @success_message = session.delete(:success_message)
-  
+
   today_deadline = Date.today - 1
   deadline = @form.deadline.to_date rescue nil
 
@@ -254,14 +298,20 @@ get '/form/:form_key' do
   erb :'users/show', layout: :'users/layout'
 end
 
-get '/error' do
+get '/error/?' do
+  @error_code = params[:code] || params[:error_code]
+  erb :'users/error.erb', layout: false
+end
+
+get '/error/:code' do
+  @error_code = params[:code]
   erb :'users/error.erb', layout: false
 end
 
 get '/search/:form_key' do
   @form = Form.find_by(form_key: params[:form_key])
   keyword = params[:keyword]
-  return redirect "/form/\#{params[:form_key]}" if keyword.nil? || keyword.strip.empty?
+  return redirect "/form/#{params[:form_key]}" if keyword.nil? || keyword.strip.empty?
 
   form_owner = @form.user
   refresh_user_access_token(form_owner) if form_owner.spotify_expires_at && form_owner.spotify_expires_at < Time.now
@@ -274,7 +324,7 @@ get '/search/:form_key' do
   req['Authorization'] = "Bearer #{token}"
 
   res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  return "Spotify APIエラー: \#{res.code} - \#{res.body}" unless res.is_a?(Net::HTTPSuccess)
+  return "Spotify APIエラー: #{res.code} - #{res.body}" unless res.is_a?(Net::HTTPSuccess)
 
   @items = JSON.parse(res.body)['tracks']['items']
   return "検索結果なし。" if @items.nil? || @items.empty?
@@ -575,8 +625,9 @@ end
 #フォームの共有(リンク、QR)
 get '/share' do
   @form_key = params[:form_key]
-  
-  form_url = "https://tunebox.onrender.com/form/#{@form_key}"
+
+  base_url = ENV['APP_BASE_URL'] || request.base_url
+  form_url = "#{base_url}/form/#{@form_key}"
 
   qrcode = RQRCode::QRCode.new(form_url)
 
@@ -768,7 +819,7 @@ get '/signup/skip' do
 end
 
 def send_signup_confirmation_mail(user)
-  Pony.mail(
+  send_mail_safely(
     to: user.mail,
     from: ENV['MAIL_USER'],
     subject: '【TuneBox】アカウント作成が完了しました',
@@ -877,15 +928,7 @@ end
 # Pony の共通設定
 Pony.options = {
   via: :smtp,
-  via_options: {
-    address:              'smtp.gmail.com',
-    port:                 '587',
-    enable_starttls_auto: true,
-    user_name:            ENV['MAIL_USER'],
-    password:             ENV['MAIL_PASS'],
-    authentication:       :plain,
-    domain:               "localhost.localdomain"
-  }
+  via_options: pony_via_options
 }
 
 # お問い合わせフォーム表示
@@ -902,7 +945,7 @@ post '/contact' do
   message      = params[:message]
 
   # 利用者宛メール
-  Pony.mail(
+  user_mail_sent = send_mail_safely(
     to: user_email,
     from: ENV['MAIL_USER'],
     subject: '【TuneBox】お問い合わせありがとうございます',
@@ -926,7 +969,7 @@ post '/contact' do
   )
 
   # 管理者宛メール
-  Pony.mail(
+  admin_mail_sent = send_mail_safely(
     to: ENV['MAIL_USER'],
     from: ENV['MAIL_USER'],
     subject: '【TuneBox】新しいお問い合わせが届きました',
@@ -947,6 +990,11 @@ post '/contact' do
     BODY
   )
   
-  session[:success_message] = "送信しました"
+  session[:success_message] =
+    if user_mail_sent && admin_mail_sent
+      "送信しました"
+    else
+      "お問い合わせ内容は受け付けましたが、メール送信はスキップまたは失敗しました"
+    end
   redirect '/contact'
 end

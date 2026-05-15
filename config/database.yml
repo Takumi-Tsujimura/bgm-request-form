@@ -1,14 +1,13 @@
-default: &default
+development:
   adapter: postgresql
   encoding: unicode
   pool: <%= ENV.fetch("DB_POOL", 5) %>
-
-development:
-  <<: *default
   database: s_original
 
 production:
-  <<: *default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("DB_POOL", 5) %>
   database: <%= ENV["DB_NAME"] %>
   host: <%= ENV["DB_HOST"] %>
   username: <%= ENV["DB_USER"] %>
